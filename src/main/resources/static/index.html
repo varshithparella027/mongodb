@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fitness Tracker</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f2f2f2;
+        padding: 20px;
+      }
+      .container {
+        max-width: 700px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        text-align: center;
+      }
+      h3 {
+        margin-top: 30px;
+      }
+      input,
+      button {
+        display: block;
+        width: 100%;
+        margin-bottom: 10px;
+        padding: 10px;
+        font-size: 14px;
+      }
+      button {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #218838;
+      }
+      .workout-item {
+        background: #e9ecef;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .success {
+        color: green;
+        margin-top: 10px;
+      }
+      .error {
+        color: red;
+        margin-top: 10px;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Fitness Tracker App</h2>
+
+      <div id="auth-section">
+        <div id="register-form">
+          <h3>Register</h3>
+          <input type="text" id="reg-name" placeholder="Name" />
+          <input type="email" id="reg-email" placeholder="Email" />
+          <input type="password" id="reg-password" placeholder="Password" />
+          <button onclick="register()">Register</button>
+        </div>
+
+        <div id="login-form">
+          <h3>Login</h3>
+          <input type="email" id="login-email" placeholder="Email" />
+          <input type="password" id="login-password" placeholder="Password" />
+          <button onclick="login()">Login</button>
+        </div>
+      </div>
+
+      <div id="workout-section" class="hidden">
+        <h3>Log Workout</h3>
+        <input
+          type="text"
+          id="type"
+          placeholder="Workout Type (e.g. Running)"
+        />
+        <input type="number" id="duration" placeholder="Duration (minutes)" />
+        <input type="number" id="calories" placeholder="Calories Burned" />
+        <input type="date" id="date" />
+        <button onclick="addWorkout(event)">Add Workout</button>
+        <button onclick="loadWorkouts()">Load Workouts</button>
+
+        <div id="workout-list"></div>
+      </div>
+
+      <div id="message"></div>
+    </div>
+
+    <script>
+      let currentUser = null;
+
+      async function register() {
+        const user = {
+          name: document.getElementById("reg-name").value,
+          email: document.getElementById("reg-email").value,
+          password: document.getElementById("reg-password").value,
+        };
+        const res = await fetch("/api/user/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(user),
+        });
+        const msg = await res.text();
+        showMessage(msg);
+      }
+
+      async function login() {
+        const user = {
+          email: document.getElementById("login-email").value,
+          password: document.getElementById("login-password").value,
+        };
+        const res = await fetch("/api/user/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(user),
+        });
+        const msg = await res.text();
+        if (msg === "Login successful") {
+          currentUser = user.email;
+          document.getElementById("auth-section").classList.add("hidden");
+          document.getElementById("workout-section").classList.remove("hidden");
+          showMessage(msg);
+        } else {
+          showMessage(msg, true);
+        }
+      }
+
+      async function addWorkout(event) {
+        event.preventDefault();
+
+        if (!currentUser) {
+          showMessage("Please log in first.", true);
+          return;
+        }
+
+        const workout = {
+          userId: currentUser,
+          type: document.getElementById("type").value,
+          duration: parseInt(document.getElementById("duration").value),
+          caloriesBurned: parseInt(document.getElementById("calories").value),
+          date: document.getElementById("date").value,
+        };
+
+        const res = await fetch("/api/workout/add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(workout),
+        });
+
+        const msg = await res.text();
+        showMessage(msg);
+      }
+
+      async function loadWorkouts() {
+        if (!currentUser) {
+          showMessage("Please log in first.", true);
+          return;
+        }
+
+        const res = await fetch(`/api/workout/history/${currentUser}`);
+        const workouts = await res.json();
+        const list = document.getElementById("workout-list");
+        list.innerHTML = "";
+
+        workouts.forEach((w) => {
+          const div = document.createElement("div");
+          div.className = "workout-item";
+          div.innerHTML = `
+            <strong>${w.type}</strong> - ${w.duration} mins, ${w.caloriesBurned} cal<br />
+            <small>${w.date}</small>
+          `;
+          list.appendChild(div);
+        });
+      }
+
+      function showMessage(msg, error = false) {
+        const el = document.getElementById("message");
+        el.textContent = msg;
+        el.className = error ? "error" : "success";
+      }
+    </script>
+  </body>
+</html>
